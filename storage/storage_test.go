@@ -16,107 +16,109 @@ func newTestRaftStore(t *testing.T) (*storage.RaftStore, string) {
 	require.NoError(t, err)
 
 	opts := storage.RaftStoreOpts{Timeout: 1 * time.Second}
-	raftDB, err := storage.NewRaftStore(tmpfile.Name(), opts)
+	raftStore, err := storage.NewRaftStore(tmpfile.Name(), opts)
 	require.NoError(t, err)
 
-	return raftDB, tmpfile.Name()
+	return raftStore, tmpfile.Name()
 }
 
 func TestRaftStore(t *testing.T) {
-	raftDB, tmpfile := newTestRaftStore(t)
+	raftStore, tmpfile := newTestRaftStore(t)
 
 	defer os.Remove(tmpfile)
-	require.NotNil(t, raftDB)
+	require.NotNil(t, raftStore)
 
-	err := raftDB.Close()
+	err := raftStore.Close()
 	require.NoError(t, err)
 }
 
 func TestRaftStoreReadOnly(t *testing.T) {
-	raftDB, tmpfile := newTestRaftStore(t)
+	raftStore, tmpfile := newTestRaftStore(t)
 
 	defer os.Remove(tmpfile)
-	require.NotNil(t, raftDB)
+	require.NotNil(t, raftStore)
 
-	raftDB.Close()
+	raftStore.Close()
 
 	opts := storage.RaftStoreOpts{Timeout: 1 * time.Second, ReadOnly: true}
-	raftDB, err := storage.NewRaftStore(tmpfile, opts)
+	raftStore, err := storage.NewRaftStore(tmpfile, opts)
 	require.NoError(t, err)
 
-	err = raftDB.Set([]byte("nodeID"), []byte("node0"))
+	err = raftStore.Set([]byte("nodeID"), []byte("node0"))
 	require.Error(t, err)
 }
 
 func TestRaftStoreGetSet(t *testing.T) {
-	raftDB, tmpfile := newTestRaftStore(t)
+	raftStore, tmpfile := newTestRaftStore(t)
 
 	defer os.Remove(tmpfile)
-	require.NotNil(t, raftDB)
+	require.NotNil(t, raftStore)
 
 	key, value := []byte("nodeID"), []byte("node0")
 
 	// require non-existant key returns nil
-	res, err := raftDB.Get(key)
+	res, err := raftStore.Get(key)
 	require.Error(t, err)
 	require.Nil(t, res)
 
-	err = raftDB.Set(key, value)
+	err = raftStore.Set(key, value)
 	require.NoError(t, err)
 
 	// require existant key returns correct value
-	res, err = raftDB.Get(key)
+	res, err = raftStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, value, res)
 }
 
 func TestRaftStoreGetSetUint64(t *testing.T) {
-	raftDB, tmpfile := newTestRaftStore(t)
+	raftStore, tmpfile := newTestRaftStore(t)
 
 	defer os.Remove(tmpfile)
-	require.NotNil(t, raftDB)
+	require.NotNil(t, raftStore)
 
 	key, value := []byte("commitID"), uint64(71)
 
 	// require non-existant key returns nil
-	res, err := raftDB.GetUint64(key)
+	res, err := raftStore.GetUint64(key)
 	require.Error(t, err)
 	require.Equal(t, uint64(0), res)
 
-	err = raftDB.SetUint64(key, value)
+	err = raftStore.SetUint64(key, value)
 	require.NoError(t, err)
 
 	// require existant key returns correct value
-	res, err = raftDB.GetUint64(key)
+	res, err = raftStore.GetUint64(key)
 	require.NoError(t, err)
 	require.Equal(t, value, res)
 }
 
 func TestRaftStoreGetSetLog(t *testing.T) {
-	raftDB, tmpfile := newTestRaftStore(t)
+	raftStore, tmpfile := newTestRaftStore(t)
 
 	defer os.Remove(tmpfile)
-	require.NotNil(t, raftDB)
+	require.NotNil(t, raftStore)
 
 	log := types.NewLog(1, 1, []byte("command"))
 
-	res, err := raftDB.GetLog(log.Index)
+	// require non-existant key returns nil
+	res, err := raftStore.GetLog(log.Index)
 	require.Error(t, err)
 	require.Equal(t, types.Log{}, res)
 
-	err = raftDB.SetLog(log)
+	err = raftStore.SetLog(log)
 	require.NoError(t, err)
 
-	res, err = raftDB.GetLog(log.Index)
+	// require existant key returns correct log
+	res, err = raftStore.GetLog(log.Index)
 	require.NoError(t, err)
 	require.Equal(t, log, res)
 }
 
 func TestRaftStoreLogsIter(t *testing.T) {
-	raftDB, tmpfile := newTestRaftStore(t)
+	raftStore, tmpfile := newTestRaftStore(t)
 
 	defer os.Remove(tmpfile)
-	require.NotNil(t, raftDB)
+	require.NotNil(t, raftStore)
 
 	logs := make([]types.Log, 20)
 	for i := range logs {
@@ -124,12 +126,13 @@ func TestRaftStoreLogsIter(t *testing.T) {
 	}
 
 	for _, log := range logs {
-		err := raftDB.SetLog(log)
+		err := raftStore.SetLog(log)
 		require.NoError(t, err)
 	}
 
+	// create an iterator and retrieve all log indices
 	var indices []uint64
-	err := raftDB.LogsIter(
+	err := raftStore.LogsIter(
 		logs[0].Index,
 		logs[len(logs)-1].Index,
 		func(log types.Log) error {
@@ -139,39 +142,41 @@ func TestRaftStoreLogsIter(t *testing.T) {
 	)
 	require.NoError(t, err)
 
+	// require all log indices are correct
 	for i, index := range indices {
 		require.Equal(t, index, logs[i].Index)
 	}
 }
 
 func TestRaftStoreSetLogs(t *testing.T) {
-	raftDB, tmpfile := newTestRaftStore(t)
+	raftStore, tmpfile := newTestRaftStore(t)
 
 	defer os.Remove(tmpfile)
-	require.NotNil(t, raftDB)
+	require.NotNil(t, raftStore)
 
 	logs := make([]types.Log, 20)
 	for i := range logs {
 		logs[i] = types.NewLog(uint64(i), 1, nil)
 	}
 
-	err := raftDB.SetLogs(logs)
+	err := raftStore.SetLogs(logs)
 	require.NoError(t, err)
 
+	// require all logs exist that were inserted in batch
 	for i, log := range logs {
-		res, err := raftDB.GetLog(uint64(i))
+		res, err := raftStore.GetLog(uint64(i))
 		require.NoError(t, err)
 		require.Equal(t, log, res)
 	}
 }
 
 func TestRaftStoreGetLastLogIndex(t *testing.T) {
-	raftDB, tmpfile := newTestRaftStore(t)
+	raftStore, tmpfile := newTestRaftStore(t)
 
 	defer os.Remove(tmpfile)
-	require.NotNil(t, raftDB)
+	require.NotNil(t, raftStore)
 
-	llIndex := raftDB.GetLastLogIndex()
+	llIndex := raftStore.GetLastLogIndex()
 	require.Equal(t, uint64(0), llIndex)
 
 	logs := make([]types.Log, 20)
@@ -180,10 +185,10 @@ func TestRaftStoreGetLastLogIndex(t *testing.T) {
 	}
 
 	for _, log := range logs {
-		err := raftDB.SetLog(log)
+		err := raftStore.SetLog(log)
 		require.NoError(t, err)
 	}
 
-	llIndex = raftDB.GetLastLogIndex()
+	llIndex = raftStore.GetLastLogIndex()
 	require.Equal(t, logs[len(logs)-1].Index, llIndex)
 }

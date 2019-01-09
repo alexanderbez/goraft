@@ -3,7 +3,6 @@ package storage
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 
 	"github.com/alexanderbez/goraft/types"
@@ -11,13 +10,11 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-var (
-	// Assert that RaftStore implements the RaftDB interface at compile time.
-	_ RaftDB = (*RaftStore)(nil)
+// Assert that RaftStore implements the RaftDB interface at compile time.
+var _ RaftDB = (*RaftStore)(nil)
 
-	// ErrKeyNotFound defines an error returned when a given key does not exist.
-	ErrKeyNotFound = errors.New("key does not exist")
-)
+// ErrKeyNotFound defines an error returned when a given key does not exist.
+var ErrKeyNotFound = errors.New("key does not exist")
 
 type (
 	// DB defines an embedded key/value store database interface.
@@ -34,6 +31,8 @@ type (
 	RaftDB interface {
 		DB
 
+		SetLogEncoder(enc types.LogEncoder)
+		SetLogDecoder(dec types.LogDecoder)
 		SetLogs(logs []types.Log) error
 		SetLog(log types.Log) error
 		GetLog(index uint64) (types.Log, error)
@@ -49,6 +48,9 @@ type (
 	// Contract: RaftStore should never persist nil values.
 	RaftStore struct {
 		db *bolt.DB
+
+		logEncoder types.LogEncoder
+		logDecoder types.LogDecoder
 
 		logsBucket []byte // persistance of append-only logs
 		mainBucket []byte // persistance of non-log data (e.g. cluster config and node metadata)
@@ -80,6 +82,8 @@ func NewRaftStore(dbPath string, opts RaftStoreOpts) (*RaftStore, error) {
 
 	rs := &RaftStore{
 		db:         db,
+		logEncoder: types.JSONLogEncoder{},
+		logDecoder: types.JSONLogDecoder{},
 		logsBucket: []byte("logs"),
 		mainBucket: []byte("main"),
 	}
@@ -93,22 +97,14 @@ func NewRaftStore(dbPath string, opts RaftStoreOpts) (*RaftStore, error) {
 	return rs, nil
 }
 
-func (rs *RaftStore) createBuckets() error {
-	for _, bucket := range [][]byte{rs.logsBucket, rs.mainBucket} {
-		err := rs.db.Update(func(tx *bolt.Tx) error {
-			_, err := tx.CreateBucketIfNotExists(bucket)
-			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("failed to create bucket: %s", bucket))
-			}
+// SetLogEncoder sets the store's log encoder type.
+func (rs *RaftStore) SetLogEncoder(enc types.LogEncoder) {
+	rs.logEncoder = enc
+}
 
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+// SetLogDecoder sets the store's log decoder type.
+func (rs *RaftStore) SetLogDecoder(dec types.LogDecoder) {
+	rs.logDecoder = dec
 }
 
 // Get returns a value for a given key. If the key does not exist, an error is
@@ -117,8 +113,7 @@ func (rs *RaftStore) Get(key []byte) ([]byte, error) {
 	return rs.get(rs.mainBucket, key)
 }
 
-// Set inserts a value for a given key. An error is returned upon failure. An
-// error is returned upon failure.
+// Set inserts a value for a given key. An error is returned upon failure.
 func (rs *RaftStore) Set(key, value []byte) error {
 	return rs.set(rs.mainBucket, key, value)
 }
@@ -150,9 +145,9 @@ func (rs *RaftStore) SetLogs(logs []types.Log) error {
 		b := tx.Bucket(rs.logsBucket)
 
 		for _, log := range logs {
-			rawLog, err := json.Marshal(log)
+			rawLog, err := rs.logEncoder.Encode(log)
 			if err != nil {
-				return errors.Wrap(err, "failed to JSON encode log")
+				return errors.Wrap(err, "failed to encode log")
 			}
 
 			if err := b.Put(uint64ToBytes(log.Index), rawLog); err != nil {
@@ -169,9 +164,9 @@ func (rs *RaftStore) SetLogs(logs []types.Log) error {
 //
 // Contract: No log should exist for that given index.
 func (rs *RaftStore) SetLog(log types.Log) error {
-	rawLog, err := json.Marshal(log)
+	rawLog, err := rs.logEncoder.Encode(log)
 	if err != nil {
-		return errors.Wrap(err, "failed to JSON encode log")
+		return errors.Wrap(err, "failed to encode log")
 	}
 
 	return rs.set(rs.logsBucket, uint64ToBytes(log.Index), rawLog)
@@ -187,8 +182,8 @@ func (rs *RaftStore) GetLog(index uint64) (types.Log, error) {
 
 	}
 
-	if err := json.Unmarshal(rawLog, &log); err != nil {
-		return log, err
+	if err := rs.logDecoder.Decode(rawLog, &log); err != nil {
+		return log, errors.Wrap(err, "failed to decode log")
 	}
 
 	return log, nil
@@ -230,8 +225,8 @@ func (rs *RaftStore) LogsIter(start, end uint64, cb func(log types.Log) error) e
 
 		for k, v := cursor.Seek(min); k != nil && bytes.Compare(k, max) <= 0; k, v = cursor.Next() {
 			var log types.Log
-			if err := json.Unmarshal(v, &log); err != nil {
-				return err
+			if err := rs.logDecoder.Decode(v, &log); err != nil {
+				return errors.Wrap(err, "failed to decode log")
 			}
 
 			if err := cb(log); err != nil {
@@ -272,6 +267,24 @@ func (rs *RaftStore) set(bucket, key, value []byte) error {
 		b := tx.Bucket(bucket)
 		return b.Put(key, value)
 	})
+}
+
+func (rs *RaftStore) createBuckets() error {
+	for _, bucket := range [][]byte{rs.logsBucket, rs.mainBucket} {
+		err := rs.db.Update(func(tx *bolt.Tx) error {
+			_, err := tx.CreateBucketIfNotExists(bucket)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("failed to create bucket: %s", bucket))
+			}
+
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ----------------------------------------------------------------------------
