@@ -164,22 +164,17 @@ func (rs *RaftStore) SetLogs(logs []types.Log) error {
 //
 // Contract: No log should exist for that given index.
 func (rs *RaftStore) SetLog(log types.Log) error {
-	rawLog, err := rs.logEncoder.Encode(log)
-	if err != nil {
-		return errors.Wrap(err, "failed to encode log")
-	}
-
-	return rs.set(rs.logsBucket, uint64ToBytes(log.Index), rawLog)
+	return rs.SetLogs([]types.Log{log})
 }
 
-// GetLog returns a log for a given index. If no logs exists for such an index
+// GetLog returns a log for a given index. If no log exists for such an index
 // or if it cannot be deserialized, an error is returned.
 func (rs *RaftStore) GetLog(index uint64) (types.Log, error) {
 	var log types.Log
 
 	rawLog, err := rs.get(rs.logsBucket, uint64ToBytes(index))
 	if err != nil {
-
+		return log, ErrKeyNotFound
 	}
 
 	if err := rs.logDecoder.Decode(rawLog, &log); err != nil {

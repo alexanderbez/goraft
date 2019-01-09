@@ -59,6 +59,7 @@ func TestRaftStoreGetSet(t *testing.T) {
 	// require non-existant key returns nil
 	res, err := raftStore.Get(key)
 	require.Error(t, err)
+	require.Equal(t, storage.ErrKeyNotFound, err)
 	require.Nil(t, res)
 
 	err = raftStore.Set(key, value)
@@ -81,6 +82,7 @@ func TestRaftStoreGetSetUint64(t *testing.T) {
 	// require non-existant key returns nil
 	res, err := raftStore.GetUint64(key)
 	require.Error(t, err)
+	require.Equal(t, storage.ErrKeyNotFound, err)
 	require.Equal(t, uint64(0), res)
 
 	err = raftStore.SetUint64(key, value)
@@ -103,6 +105,7 @@ func TestRaftStoreGetSetLog(t *testing.T) {
 	// require non-existant key returns nil
 	res, err := raftStore.GetLog(log.Index)
 	require.Error(t, err)
+	require.Equal(t, storage.ErrKeyNotFound, err)
 	require.Equal(t, types.Log{}, res)
 
 	err = raftStore.SetLog(log)
