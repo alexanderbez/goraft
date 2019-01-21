@@ -1,0 +1,30 @@
+{
+  "Deadline": "5m",
+  "Vendor": true,
+  "Sort": [
+    "linter",
+    "severity",
+    "path",
+    "line"
+  ],
+  "Linters": {
+    "vet": "go tool vet -composites=false :PATH:LINE:MESSAGE"
+  },
+  "Exclude": [
+    "/usr/local/go/src"
+  ],
+  "Enable": [
+    "golint",
+    "vet",
+    "ineffassign",
+    "unparam",
+    "unconvert",
+    "misspell",
+    "gofmt",
+    "deadcode",
+    "unused",
+    "goimports",
+    "errcheck",
+    "maligned"
+  ]
+}
