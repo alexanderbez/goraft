@@ -26,7 +26,7 @@ type (
 		Close() error
 	}
 
-	// RaftDB defines a Raft stable storage interface that any persistance layer
+	// RaftDB defines a Raft stable storage interface that any persistence layer
 	// used in Raft consensus must implement.
 	RaftDB interface {
 		DB
@@ -41,7 +41,7 @@ type (
 		// RemoveLogs(lastIndex uint64)
 	}
 
-	// RaftStore implements the default Raft stable storage and persistance layer.
+	// RaftStore implements the default Raft stable storage and persistence layer.
 	// It uses BoltDB as the underlying embedded database and implements the
 	// RaftDB interface.
 	//
@@ -52,8 +52,8 @@ type (
 		logEncoder types.LogEncoder
 		logDecoder types.LogDecoder
 
-		logsBucket []byte // persistance of append-only logs
-		mainBucket []byte // persistance of non-log data (e.g. cluster config and node metadata)
+		logsBucket []byte // persistence of append-only logs
+		mainBucket []byte // persistence of non-log data (e.g. cluster config and node metadata)
 	}
 
 	// RaftStoreOpts defines a type alias for BoltDB connection and configuration
@@ -189,7 +189,8 @@ func (rs *RaftStore) GetLog(index uint64) (types.Log, error) {
 func (rs *RaftStore) GetLastLogIndex() uint64 {
 	rawValue := make([]byte, 8)
 
-	rs.db.View(func(tx *bolt.Tx) error {
+	// nolint: unparam
+	_ = rs.db.View(func(tx *bolt.Tx) error {
 		cursor := tx.Bucket(rs.logsBucket).Cursor()
 
 		key, _ := cursor.Last()

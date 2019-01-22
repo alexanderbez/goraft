@@ -12,15 +12,15 @@ import (
 var _ RaftDB = (*MemStore)(nil)
 
 type (
-	// MemStore implements an in-memory simple Raft stable storage and persistance
+	// MemStore implements an in-memory simple Raft stable storage and persistence
 	// layer. It implements the RaftDB interface.
 	MemStore struct {
 		mtx sync.RWMutex
 
 		lastLogIndex uint64 // log with the highest index
 
-		logsBucket map[uint64]types.Log // persistance of append-only logs
-		mainBucket map[string][]byte    // persistance of non-log data (e.g. cluster config and node metadata)
+		logsBucket map[uint64]types.Log // persistence of append-only logs
+		mainBucket map[string][]byte    // persistence of non-log data (e.g. cluster config and node metadata)
 	}
 )
 

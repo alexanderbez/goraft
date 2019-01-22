@@ -23,7 +23,7 @@ func TestMemStoreGetSet(t *testing.T) {
 
 	key, value := []byte("nodeID"), []byte("node0")
 
-	// require non-existant key returns nil
+	// require non-existent key returns nil
 	res, err := memStore.Get(key)
 	require.Error(t, err)
 	require.Nil(t, res)
@@ -31,7 +31,7 @@ func TestMemStoreGetSet(t *testing.T) {
 	err = memStore.Set(key, value)
 	require.NoError(t, err)
 
-	// require existant key returns correct value
+	// require existent key returns correct value
 	res, err = memStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, value, res)
@@ -43,7 +43,7 @@ func TestMemStoreGetSetUint64(t *testing.T) {
 
 	key, value := []byte("commitID"), uint64(71)
 
-	// require non-existant key returns nil
+	// require non-existent key returns nil
 	res, err := memStore.GetUint64(key)
 	require.Error(t, err)
 	require.Equal(t, uint64(0), res)
@@ -51,7 +51,7 @@ func TestMemStoreGetSetUint64(t *testing.T) {
 	err = memStore.SetUint64(key, value)
 	require.NoError(t, err)
 
-	// require existant key returns correct value
+	// require existent key returns correct value
 	res, err = memStore.GetUint64(key)
 	require.NoError(t, err)
 	require.Equal(t, value, res)
@@ -83,7 +83,7 @@ func TestMemStoreGetSetLog(t *testing.T) {
 
 	log := types.NewLog(1, 1, []byte("command"))
 
-	// require non-existant key returns nil
+	// require non-existent key returns nil
 	res, err := memStore.GetLog(log.Index)
 	require.Error(t, err)
 	require.Equal(t, storage.ErrKeyNotFound, err)
@@ -92,7 +92,7 @@ func TestMemStoreGetSetLog(t *testing.T) {
 	err = memStore.SetLog(log)
 	require.NoError(t, err)
 
-	// require existant key returns correct log
+	// require existent key returns correct log
 	res, err = memStore.GetLog(log.Index)
 	require.NoError(t, err)
 	require.Equal(t, log, res)

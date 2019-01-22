@@ -56,7 +56,7 @@ func TestRaftStoreGetSet(t *testing.T) {
 
 	key, value := []byte("nodeID"), []byte("node0")
 
-	// require non-existant key returns nil
+	// require non-existent key returns nil
 	res, err := raftStore.Get(key)
 	require.Error(t, err)
 	require.Equal(t, storage.ErrKeyNotFound, err)
@@ -65,7 +65,7 @@ func TestRaftStoreGetSet(t *testing.T) {
 	err = raftStore.Set(key, value)
 	require.NoError(t, err)
 
-	// require existant key returns correct value
+	// require existent key returns correct value
 	res, err = raftStore.Get(key)
 	require.NoError(t, err)
 	require.Equal(t, value, res)
@@ -79,7 +79,7 @@ func TestRaftStoreGetSetUint64(t *testing.T) {
 
 	key, value := []byte("commitID"), uint64(71)
 
-	// require non-existant key returns nil
+	// require non-existent key returns nil
 	res, err := raftStore.GetUint64(key)
 	require.Error(t, err)
 	require.Equal(t, storage.ErrKeyNotFound, err)
@@ -88,7 +88,7 @@ func TestRaftStoreGetSetUint64(t *testing.T) {
 	err = raftStore.SetUint64(key, value)
 	require.NoError(t, err)
 
-	// require existant key returns correct value
+	// require existent key returns correct value
 	res, err = raftStore.GetUint64(key)
 	require.NoError(t, err)
 	require.Equal(t, value, res)
@@ -102,7 +102,7 @@ func TestRaftStoreGetSetLog(t *testing.T) {
 
 	log := types.NewLog(1, 1, []byte("command"))
 
-	// require non-existant key returns nil
+	// require non-existent key returns nil
 	res, err := raftStore.GetLog(log.Index)
 	require.Error(t, err)
 	require.Equal(t, storage.ErrKeyNotFound, err)
@@ -111,7 +111,7 @@ func TestRaftStoreGetSetLog(t *testing.T) {
 	err = raftStore.SetLog(log)
 	require.NoError(t, err)
 
-	// require existant key returns correct log
+	// require existent key returns correct log
 	res, err = raftStore.GetLog(log.Index)
 	require.NoError(t, err)
 	require.Equal(t, log, res)

@@ -18,7 +18,9 @@ func newTestConfig() goraft.Config {
 		ListenAddr:        "node0.test",
 		CompactionEnabled: true,
 		DataDir:           "/tmp/node0/data",
-		Peers:             []goraft.Peer{goraft.Peer{NodeID: "node1", Address: "node1.test"}},
+		Peers: []goraft.Peer{
+			{NodeID: "node1", Address: "node1.test"},
+		},
 	}
 }
 
